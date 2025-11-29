@@ -12,8 +12,6 @@
   // oyuncu double down dediği zaman
   let isDoubledown = $state(false);
   let doubledownCardTakeCount = $state(0);
-  //her yeni oyundan önceki 8 saniyelik bekleme süresi
-  let waitingTime = $state(0);
   // cards of the dealer and the player.
   let dealerCards = $state([]);
   let playerCards = $state([]);
@@ -172,7 +170,6 @@
   }
   function redistributeCards() {
     // oyuncunun kartları oyun destesinden çıkartılır
-    isSwitching = true;
     for (let playerCard of playerCards) {
       // Removing the played cards of the player
       playingCards = playingCards.filter((card) => card.id !== playerCard.id);
@@ -194,8 +191,9 @@
     }
 
     isStay = false;
-    isSwitching = false;
+    roundStarted = true;
     isDoubledown = false;
+    isSwitching = false;
     doubledownCardTakeCount = 0;
   }
 
@@ -203,9 +201,9 @@
     // Dealer takes a card.
     if (!isStay) {
       if (playerCards.length === 2 && playerValue === 21) return "BJ";
+      else if (dealerValue > 21) return "WIN";
       else if (playerValue === 21) return "WIN";
       else if (dealerValue === 21) return "LOSE";
-      else if (dealerValue > 21) return "WIN";
       else if (playerValue > 21) return "LOSE";
       return null;
     } else {
@@ -218,24 +216,26 @@
           return "WIN";
         }
       } else {
-        if (dealerValue === playerValue) return "PUSH"; // First checking for a push.
+        if (dealerValue > 21) return "WIN";
+        else if (dealerValue === playerValue)
+          return "PUSH"; // First checking for a push.
         // If we are in a "stay" state
-        if (playerValue > dealerValue) return "WIN";
+        else if (playerValue > dealerValue) return "WIN";
         else if (dealerValue > playerValue) return "LOSE";
       }
     }
   }
 
   function dealerCheck() {
-    if (!(transformToNumerical(playerCards) > 21)) {
-      if (transformToNumerical(dealerCards) >= 17) {
+    if (!(playerScore > 21)) {
+      if (dealerScore >= 17) {
         stateText = "Dealer is on hold.";
         checkGame();
       } else {
         dealerCards.push(playingCards[getRandomNum()]);
       }
       if (isStay || isDoubledown) {
-        while (transformToNumerical(dealerCards) < 17) {
+        while (dealerScore < 17) {
           dealerCards.push(playingCards[getRandomNum()]);
         }
       }
@@ -244,18 +244,13 @@
 
   function checkGame() {
     // Money is deducted when the round starts.
-    currentMoney -= bet;
-    switch (
-      gameLogic(
-        transformToNumerical(dealerCards),
-        transformToNumerical(playerCards)
-      )
-    ) {
+    switch (gameLogic(dealerScore, playerScore)) {
       case "WIN":
         currentMoney += bet * 2;
         if (isDoubledown) currentMoney += bet * 3;
         stateText = "You won!";
         roundStarted = false;
+        isSwitching = true;
         break;
 
       case "BJ":
@@ -263,19 +258,24 @@
         if (isDoubledown) currentMoney += bet * 4;
         stateText = "You hit blackjack!";
         roundStarted = false;
+        isSwitching = true;
+
         break;
 
       case "LOSE":
         stateText = "You lost.";
         if (isDoubledown) currentMoney -= bet * 2;
         roundStarted = false;
+        isSwitching = true;
+
         break;
 
       case "PUSH":
         currentMoney += bet; // Giving their money back to them.
         if (isDoubledown) currentMoney += bet * 2;
         stateText = "Push.";
-
+        roundStarted = false;
+        isSwitching = false;
         break;
       default:
         return;
@@ -355,7 +355,7 @@
 </script>
 
 <main
-  class="flex flex-col text-lg md:grid md:grid-cols-[35%_65%] lg:grid-cols-[25%_75%] md:grid-rows-1 h-full"
+  class="text-lg md:grid md:grid-cols-[35%_65%] lg:grid-cols-[25%_75%] md:grid-rows-1 h-full"
 >
   <!-- Betting area -->
   <div class="p-3 bg-[#213744] text-[#bbcad4] md:h-screen">
@@ -367,13 +367,6 @@
           <span>Available funds: </span> <span>{currentMoney}</span>
         </div>
         <span class="text-sm m-1">Betting amount</span>
-        <!-- <input
-            max={currentMoney}
-            min="0"
-            type="number"
-            bind:value={bet}
-            class="translate-y-0.75 p-2 text-xl border-[#2e4c7d] border rounded-lg w-full bg-[#182b39] shadow-2xl"
-          /> -->
         <input
           max={currentMoney}
           min="0"
@@ -479,7 +472,7 @@
         </div>
       </div>
       <div
-        class="relative w-full mt-4 {isStarted &&
+        class="relative w-full mt-4 {roundStarted &&
           'pointer-events-none opacity-50'}"
       >
         <div class="absolute w-full h-full bg-[#2baf3d] rounded-lg"></div>
@@ -493,7 +486,7 @@
       </div>
     </div>
   </div>
-  <div class="bg-[#0f212f] z-0 h-full">
+  <div class="bg-[#0f212f] p-4 h-full flex flex-row">
     {#if isStarted}
       <!-- oyunun oynandığı kısım -->
       <div
@@ -503,51 +496,116 @@
           <div
             transition:fade={{ duration: 200 }}
             class="{stateText === '' &&
-              'hidden'} p-2 rounded-lg m-1 w-fit px-2 text-[#bbcad4] bg-[#152c39] border border-white"
+              'hidden'} p-2 rounded-lg m-1 w-fit px-2 text-[#bbcad4] bg-[#152c39]"
           >
             {stateText}
           </div>
           <div
             class="{isSwitching && 'opacity-100'} opacity-0 flex justify-end"
-          >
-            <div
-              class="p-1 m-1 bg-black/60 border h-min border-dashed border-white rounded-sm w-fit px-3"
-            >
-              {waitingTime}
+          ></div>
+        </div>
+
+        <!-- kurpiyerin açık kartını göstermek için -->
+
+        {#if isStay || isSwitching}
+          <div class="grid grid-rows-[15%_85%] grid-cols-1 h-full w-full">
+            <div class="flex justify-center items-center">
+              <div
+                class="rounded-full text-lg w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
+              >
+                Dealer
+              </div>
+            </div>
+
+            <div class="flex flex-row flex-1 w-full justify-center">
+              {#each dealerCards as card}
+                <div
+                  class="bg-[#c0d7d6] m-2 h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
+                >
+                  <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
+                  <div class="w-full h-full ml-7 mt-5 text-5xl">
+                    {#if card?.suit === "clubs"}
+                      ♣️
+                    {/if}
+                    {#if card?.suit === "spades"}
+                      ♠️
+                    {/if}
+                    {#if card?.suit === "hearts"}
+                      ♥️
+                    {/if}
+                    {#if card?.suit === "diamonds"}
+                      ♦️
+                    {/if}
+                  </div>
+                </div>
+              {/each}
             </div>
           </div>
-        </div>
-        <!-- kurpiyerin açık kartını göstermek için -->
-        {#if isStay || isSwitching}
-          <div class="flex flex-row flex-1 justify-center items-center">
-            {#each dealerCards as card}
-              <div
-                class="bg-[#c0d7d6] m-1 h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
-              >
-                <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
-              </div>
-            {/each}
-          </div>
         {:else}
-          <div class="flex flex-col justify-center items-center">
-            <div
-              class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
-            >
-              <p class="font-bold m-2 ml-2.5 text-3xl">
-                {dealerCards[0]?.value}
-              </p>
+          <div class="grid grid-rows-[15%_85%] grid-cols-1 h-full w-full">
+            <div class="flex justify-center items-center">
+              <div
+                class="rounded-full text-lg w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
+              >
+                Dealer
+              </div>
+            </div>
+            <div class="flex flex-row justify-center">
+              <div
+                class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
+              >
+                <p class="font-bold m-2 ml-2.5 text-3xl">
+                  {dealerCards[0]?.value}
+                </p>
+                <div class="w-full h-full ml-7 mt-5 text-5xl">
+                  {#if dealerCards[0]?.suit === "clubs"}
+                    ♣️
+                  {/if}
+                  {#if dealerCards[0]?.suit === "spades"}
+                    ♠️
+                  {/if}
+                  {#if dealerCards[0]?.suit === "hearts"}
+                    ♥️
+                  {/if}
+                  {#if dealerCards[0]?.suit === "diamonds"}
+                    ♦️
+                  {/if}
+                </div>
+              </div>
             </div>
           </div>
         {/if}
-        <div class="flex flex-row gap-4 justify-center items-center">
-          {#each playerCards as card}
+        <div class="grid grid-rows-[15%_85%] grid-cols-1 h-full w-full">
+          <div class="flex justify-center items-center">
             <div
-              class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
+              class="rounded-full text-lg w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
             >
-              <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
-              <div></div>
+              Player
             </div>
-          {/each}
+          </div>
+          <div class="flex flex-row gap-4 mt-3 justify-center">
+            {#each playerCards as card}
+              <div
+                class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
+              >
+                <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
+                <div class="w-full h-full ml-7 mt-5 text-5xl">
+                  {#if card?.suit === "clubs"}
+                    ♣️
+                  {/if}
+                  {#if card?.suit === "spades"}
+                    ♠️
+                  {/if}
+                  {#if card?.suit === "hearts"}
+                    ♥️
+                  {/if}
+                  {#if card?.suit === "diamonds"}
+                    ♦️
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
         </div>
       </div>
     {:else}
