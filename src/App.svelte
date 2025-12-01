@@ -91,8 +91,8 @@
   }
 
   function selectCards() {
-    console.log(playingCards.length);
     dealerCards = [playingCards[getRandomNum()], playingCards[getRandomNum()]];
+
     if (!isSplit) {
       playerCards = [
         playingCards[getRandomNum()],
@@ -102,9 +102,17 @@
       playerCards = secondHand;
       isSecondHand = true;
     }
+    // oyuncunun kartları oyun destesinden çıkartılır
+    for (let playerCard of playerCards) {
+      // Removing the played cards of the player
+      playingCards = playingCards.filter((card) => card.id !== playerCard.id);
+    }
+    for (let dealerCard of dealerCards) {
+      // Removing the played cards of the dealer
+      playingCards = playingCards.filter((card) => card.id !== dealerCard.id);
+    }
   }
 
-  // eğer kartlar biterse tekrardan desteyi getir
   $effect(() => {
     // paramız biterse oyun bitiyor...
     if (currentMoney <= 0) {
@@ -141,13 +149,12 @@
       for (let i = 0; i < aceCount; i++) {
         sum += DEFAULT_ACE_VALUE;
       }
-      while (sum > 21 && aceCount > 0) {
+      while (sum >= 22 && aceCount > 0) {
         sum -= 10;
         aceCount -= 1;
       }
     }
 
-    console.log("sum " + sum);
     return sum;
   }
 
@@ -168,22 +175,12 @@
   }
   function redistributeCards() {
     // eğer kartlar bitmişse onları yeniliyoruz
-    if (playingCards.length === 0) {
+    if (playingCards.length <= 12) {
       playingCards = [...cards];
-    }
-    // oyuncunun kartları oyun destesinden çıkartılır
-    for (let playerCard of playerCards) {
-      // Removing the played cards of the player
-      playingCards = playingCards.filter((card) => card.id !== playerCard.id);
-    }
-    for (let dealerCard of dealerCards) {
-      // Removing the played cards of the dealer
-      playingCards = playingCards.filter((card) => card.id !== dealerCard.id);
     }
     // The hands of the player and the dealer are resetted
     playerCards = [];
     dealerCards = [];
-    playerCards.forEach((card) => console.log("cv: " + card.value));
 
     selectCards(); // Then, we select new cards.
     if (isSecondHand) {
@@ -257,16 +254,14 @@
     // Money is deducted when the round starts.
     switch (gameLogic(dealerScore, playerScore)) {
       case "WIN":
-        currentMoney += bet;
-        if (isDoubledown) currentMoney += bet * 2;
+        currentMoney += bet * 2;
         stateText = "You won!";
         roundStarted = false;
         isSwitching = true;
         break;
 
       case "BJ":
-        currentMoney += bet * 1.5;
-        if (isDoubledown) currentMoney += bet;
+        currentMoney += bet * 3;
         stateText = "You hit blackjack!";
         roundStarted = false;
         isSwitching = true;
@@ -275,14 +270,13 @@
 
       case "LOSE":
         stateText = "You lost.";
-        if (isDoubledown) currentMoney -= bet;
+        currentMoney -= bet;
         roundStarted = false;
         isSwitching = true;
 
         break;
 
       case "PUSH":
-        if (isDoubledown) currentMoney += bet;
         stateText = "Push.";
         roundStarted = false;
         isSwitching = false;
@@ -340,8 +334,13 @@
     } else if (actionDesc === "DOUBLEDOWN") {
       //TODO: Double down logic.
       // Check for double down eligibility
-      if (playerCards.length === 2 && currentMoney > bet * 2) {
-        currentMoney -= bet;
+      if (
+        playerCards.length === 2 &&
+        currentMoney > bet * 2 &&
+        !isDoubledown &&
+        (!isSplit || !isSecondHand)
+      ) {
+        bet = bet * 2;
         isDoubledown = true;
         stateText = "Doubling down.";
       } else {
