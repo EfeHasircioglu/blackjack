@@ -206,30 +206,37 @@
 
   function gameLogic(dealerValue, playerValue) {
     // Dealer takes a card.
-
-    if (!isStay) {
-      if (playerCards.length === 2 && playerValue === 21) return "BJ";
-      else if (dealerValue > 21) return "WIN";
-      else if (playerValue === 21) return "WIN";
-      else if (dealerValue === 21) return "LOSE";
-      else if (playerValue > 21) return "LOSE";
-      return null;
+    if (isDoubledown) {
+      if (dealerValue === playerValue)
+        return "PUSH"; // First checking for a push.
+      // If we are in a "stay" state
+      else if (playerValue > dealerValue) return "WIN";
+      else if (dealerValue > playerValue) return "LOSE";
     } else {
-      if (dealerValue < 17) {
-        if (dealerValue > 21) {
-          return "WIN";
-        } else if (dealerValue > playerValue) {
-          return "LOSE";
-        } else if (playerValue > dealerValue) {
-          return "WIN";
-        }
+      if (!isStay) {
+        if (playerCards.length === 2 && playerValue === 21) return "BJ";
+        else if (dealerValue > 21) return "WIN";
+        else if (playerValue === 21) return "WIN";
+        else if (dealerValue === 21) return "LOSE";
+        else if (playerValue > 21) return "LOSE";
+        return null;
       } else {
-        if (dealerValue > 21) return "WIN";
-        else if (dealerValue === playerValue)
-          return "PUSH"; // First checking for a push.
-        // If we are in a "stay" state
-        else if (playerValue > dealerValue) return "WIN";
-        else if (dealerValue > playerValue) return "LOSE";
+        if (dealerValue < 17) {
+          if (dealerValue > 21) {
+            return "WIN";
+          } else if (dealerValue > playerValue) {
+            return "LOSE";
+          } else if (playerValue > dealerValue) {
+            return "WIN";
+          }
+        } else {
+          if (dealerValue > 21) return "WIN";
+          else if (dealerValue === playerValue)
+            return "PUSH"; // First checking for a push.
+          // If we are in a "stay" state
+          else if (playerValue > dealerValue) return "WIN";
+          else if (dealerValue > playerValue) return "LOSE";
+        }
       }
     }
   }
