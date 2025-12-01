@@ -1,6 +1,7 @@
 <script>
   import "./app.css";
   import { fly, slide, fade } from "svelte/transition";
+  import { tick } from "svelte";
   const DEFAULT_ACE_VALUE = 11; // the default value of the ace card
   let currentMoney = $state(1000); // the player starts with 1000 units of money
   let bet = $state(100);
@@ -105,11 +106,6 @@
 
   // eğer kartlar biterse tekrardan desteyi getir
   $effect(() => {
-    if (playingCards.length === 0) {
-      playingCards = [...cards];
-    }
-  });
-  $effect(() => {
     // paramız biterse oyun bitiyor...
     if (currentMoney <= 0) {
       stateText = "You've ran out of money, please leave the casino now.";
@@ -145,7 +141,7 @@
       for (let i = 0; i < aceCount; i++) {
         sum += DEFAULT_ACE_VALUE;
       }
-      while (sum > 22 && aceCount > 0) {
+      while (sum > 21 && aceCount > 0) {
         sum -= 10;
         aceCount -= 1;
       }
@@ -155,11 +151,13 @@
     return sum;
   }
 
-  function startGame() {
+  async function startGame() {
     if (!isStarted) {
       if (bet > 1 && bet < currentMoney) {
         isStarted = true;
         roundStarted = true;
+        // await tick(), animasyonların, o elementler ilk doma ve aslında array'a eklenirken animasyon olması için. ilk kartlar eklenir, sonra animasyon ile gösterilir
+        await tick();
         selectCards();
       } else {
         stateText = "Invalid bet amount.";
@@ -169,6 +167,10 @@
     }
   }
   function redistributeCards() {
+    // eğer kartlar bitmişse onları yeniliyoruz
+    if (playingCards.length === 0) {
+      playingCards = [...cards];
+    }
     // oyuncunun kartları oyun destesinden çıkartılır
     for (let playerCard of playerCards) {
       // Removing the played cards of the player
@@ -226,17 +228,26 @@
     }
   }
 
-  function dealerCheck() {
+  function wait() {
+    return new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  async function dealerCheck() {
     if (!(playerScore > 21)) {
       if (dealerScore >= 17) {
         stateText = "Dealer is on hold.";
         checkGame();
       } else {
+        //EXPERIMENTAL
+        await tick();
         dealerCards.push(playingCards[getRandomNum()]);
       }
       if (isStay || isDoubledown) {
         while (dealerScore < 17) {
+          //EXPERIMENTAL
+          await tick();
           dealerCards.push(playingCards[getRandomNum()]);
+          await wait();
         }
       }
     }
@@ -246,16 +257,16 @@
     // Money is deducted when the round starts.
     switch (gameLogic(dealerScore, playerScore)) {
       case "WIN":
-        currentMoney += bet * 2;
-        if (isDoubledown) currentMoney += bet * 3;
+        currentMoney += bet;
+        if (isDoubledown) currentMoney += bet * 2;
         stateText = "You won!";
         roundStarted = false;
         isSwitching = true;
         break;
 
       case "BJ":
-        currentMoney += bet * 3;
-        if (isDoubledown) currentMoney += bet * 4;
+        currentMoney += bet * 1.5;
+        if (isDoubledown) currentMoney += bet;
         stateText = "You hit blackjack!";
         roundStarted = false;
         isSwitching = true;
@@ -264,15 +275,14 @@
 
       case "LOSE":
         stateText = "You lost.";
-        if (isDoubledown) currentMoney -= bet * 2;
+        if (isDoubledown) currentMoney -= bet;
         roundStarted = false;
         isSwitching = true;
 
         break;
 
       case "PUSH":
-        currentMoney += bet; // Giving their money back to them.
-        if (isDoubledown) currentMoney += bet * 2;
+        if (isDoubledown) currentMoney += bet;
         stateText = "Push.";
         roundStarted = false;
         isSwitching = false;
@@ -331,6 +341,7 @@
       //TODO: Double down logic.
       // Check for double down eligibility
       if (playerCards.length === 2 && currentMoney > bet * 2) {
+        currentMoney -= bet;
         isDoubledown = true;
         stateText = "Doubling down.";
       } else {
@@ -355,10 +366,10 @@
 </script>
 
 <main
-  class="text-lg md:grid md:grid-cols-[35%_65%] lg:grid-cols-[25%_75%] md:grid-rows-1 h-full"
+  class="text-lg flex flex-col md:grid md:grid-cols-[35%_65%] lg:grid-cols-[25%_75%] md:grid-rows-1 h-screen"
 >
   <!-- Betting area -->
-  <div class="p-3 bg-[#213744] text-[#bbcad4] md:h-screen">
+  <div class="p-3 bg-[#213744] text-[#bbcad4] md:h-full">
     <div
       class="m-auto md:max-w-100 max-w-none px-6 pl-0 md:p-0 sm:w-[70%] w-[90%] md:w-auto"
     >
@@ -511,15 +522,17 @@
           <div class="grid grid-rows-[15%_85%] grid-cols-1 h-full w-full">
             <div class="flex justify-center items-center">
               <div
-                class="rounded-full text-lg w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
+                class="rounded-full mb-4 md:mb-0 text-lg w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
               >
                 Dealer
               </div>
             </div>
 
-            <div class="flex flex-row flex-1 w-full justify-center">
-              {#each dealerCards as card}
+            <div class="flex flex-row flex-1 flex-wrap w-full justify-center">
+              {#each dealerCards as card, i}
                 <div
+                  in:fly={{ y: 200, duration: 200, delay: i * 200 }}
+                  out:fade
                   class="bg-[#c0d7d6] m-2 h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
                 >
                   <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
@@ -545,13 +558,15 @@
           <div class="grid grid-rows-[15%_85%] grid-cols-1 h-full w-full">
             <div class="flex justify-center items-center">
               <div
-                class="rounded-full text-lg w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
+                class="rounded-full text-lg mb-4 md:mb-0 w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
               >
                 Dealer
               </div>
             </div>
             <div class="flex flex-row justify-center">
               <div
+                in:fly={{ y: 200, duration: 200, delay: 300 }}
+                out:fade
                 class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
               >
                 <p class="font-bold m-2 ml-2.5 text-3xl">
@@ -583,9 +598,11 @@
               Player
             </div>
           </div>
-          <div class="flex flex-row gap-4 mt-3 justify-center">
-            {#each playerCards as card}
+          <div class="flex flex-row flex-1 flex-wrap gap-4 mt-3 justify-center">
+            {#each playerCards as card, i}
               <div
+                in:fly={{ y: 200, duration: 200, delay: i * 200 }}
+                out:fade
                 class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
               >
                 <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
