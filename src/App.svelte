@@ -91,6 +91,11 @@
   }
 
   function selectCards() {
+    // eğer kartlar bitmişse onları yeniliyoruz
+    if (playingCards.length <= 12) {
+      playingCards = [...cards];
+    }
+    // after that, we give cards to the player and the dealer
     dealerCards = [playingCards[getRandomNum()], playingCards[getRandomNum()]];
 
     if (!isSplit) {
@@ -166,6 +171,7 @@
         // await tick(), animasyonların, o elementler ilk doma ve aslında array'a eklenirken animasyon olması için. ilk kartlar eklenir, sonra animasyon ile gösterilir
         await tick();
         selectCards();
+        checkGame(); // eğer daha ilk elden şanslı olarak 21 yaparsa herhangi bir taraf, direk kazanır
       } else {
         stateText = "Invalid bet amount.";
         bet = null;
@@ -174,10 +180,6 @@
     }
   }
   function redistributeCards() {
-    // eğer kartlar bitmişse onları yeniliyoruz
-    if (playingCards.length <= 12) {
-      playingCards = [...cards];
-    }
     // The hands of the player and the dealer are resetted
     playerCards = [];
     dealerCards = [];
