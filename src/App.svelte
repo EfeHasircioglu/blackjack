@@ -247,7 +247,6 @@
       if (dealerScore >= 17) {
         stateText = "Dealer is on hold.";
         checkGame();
-        checkDoubleDown();
       } else {
         //EXPERIMENTAL
         await tick();
@@ -304,15 +303,10 @@
   // TODO: eğer aşağıdakilerden bazıları eligible değilse, eligible olmayanların butonları grayed out olsun
   async function action(actionDesc) {
     if (actionDesc === "TAKE") {
-      if (doubledownCardTakeCount < 1) {
-        playerCards.push(playingCards[getRandomNum()]); // player takes a card
-        checkSplitting();
-        checkDoubleDown();
-        checkGame();
-      } else {
-        checkGame();
-        stateText = "You can only take one card while doubling down.";
-      }
+      playerCards.push(playingCards[getRandomNum()]); // player takes a card
+      checkSplitting();
+      checkGame();
+
       dealerCheck();
     } else if (actionDesc === "STAY") {
       if (!isDoubledown) {
@@ -348,7 +342,7 @@
       // Check for double down eligibility
       if (
         playerCards.length === 2 &&
-        currentMoney > bet * 2 &&
+        currentMoney >= bet * 2 &&
         !isDoubledown &&
         (!isSplit || !isSecondHand)
       ) {
@@ -369,12 +363,6 @@
     if (isSplit && isSecondHand) {
       isSplit = false;
       isSecondHand = false;
-    }
-  }
-
-  function checkDoubleDown() {
-    if (isDoubledown) {
-      doubledownCardTakeCount += 1;
     }
   }
 </script>
