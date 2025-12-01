@@ -2,6 +2,8 @@
   import "./app.css";
   import { fly, slide, fade } from "svelte/transition";
   import { tick } from "svelte";
+  import { readonly } from "svelte/store";
+  import { preventDefault } from "svelte/legacy";
   const DEFAULT_ACE_VALUE = 11; // the default value of the ace card
   let currentMoney = $state(1000); // the player starts with 1000 units of money
   let bet = $state(100);
@@ -171,6 +173,8 @@
         // await tick(), animasyonların, o elementler ilk doma ve aslında array'a eklenirken animasyon olması için. ilk kartlar eklenir, sonra animasyon ile gösterilir
         await tick();
         selectCards();
+        // TODO: bu çalışmıyor!!!
+        await tick(); // bu ilk başta bj olup olmamış mı diye.
         checkGame(); // eğer daha ilk elden şanslı olarak 21 yaparsa herhangi bir taraf, direk kazanır
       } else {
         stateText = "Invalid bet amount.";
@@ -179,7 +183,7 @@
       }
     }
   }
-  function redistributeCards() {
+  async function redistributeCards() {
     // The hands of the player and the dealer are resetted
     playerCards = [];
     dealerCards = [];
@@ -196,10 +200,13 @@
     isDoubledown = false;
     isSwitching = false;
     doubledownCardTakeCount = 0;
+    await tick(); // bu ilk başta bj olup olmamış mı diye.
+    checkGame();
   }
 
   function gameLogic(dealerValue, playerValue) {
     // Dealer takes a card.
+
     if (!isStay) {
       if (playerCards.length === 2 && playerValue === 21) return "BJ";
       else if (dealerValue > 21) return "WIN";
@@ -227,26 +234,24 @@
     }
   }
 
-  function wait() {
-    return new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-
   async function dealerCheck() {
     if (!(playerScore > 21)) {
       if (dealerScore >= 17) {
         stateText = "Dealer is on hold.";
         checkGame();
+        checkDoubleDown();
       } else {
         //EXPERIMENTAL
         await tick();
         dealerCards.push(playingCards[getRandomNum()]);
+        checkGame(); //TODO:
       }
       if (isStay || isDoubledown) {
         while (dealerScore < 17) {
           //EXPERIMENTAL
           await tick();
           dealerCards.push(playingCards[getRandomNum()]);
-          await wait();
+          checkGame();
         }
       }
     }
@@ -295,10 +300,9 @@
         playerCards.push(playingCards[getRandomNum()]); // player takes a card
         checkSplitting();
         checkDoubleDown();
-        setTimeout(() => {
-          checkGame();
-        }, 1);
+        checkGame();
       } else {
+        checkGame();
         stateText = "You can only take one card while doubling down.";
       }
       dealerCheck();
@@ -306,9 +310,7 @@
       if (!isDoubledown) {
         isStay = true;
         checkSplitting();
-        setTimeout(() => {
-          checkGame();
-        }, 1);
+        checkGame();
         dealerCheck();
       } else {
         stateText = "You can't stay while doubling down.";
@@ -345,6 +347,9 @@
         bet = bet * 2;
         isDoubledown = true;
         stateText = "Doubling down.";
+        playerCards.push(playingCards[getRandomNum()]);
+        dealerCheck();
+        checkGame();
       } else {
         stateText = "You can't double down right now.";
       }
@@ -384,6 +389,7 @@
           min="0"
           type="number"
           bind:value={bet}
+          readonly={isStarted}
           class="number-input p-2 text-xl border-[#2e4c7d] border rounded-lg w-full bg-[#182b39] shadow-2xl"
         />
         <div class="grid grid-cols-2 grid-rows-2 gap-3 gap-y-4 mt-4 text-base">
