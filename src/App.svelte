@@ -100,6 +100,10 @@
     // after that, we give cards to the player and the dealer
     dealerCards = [playingCards[getRandomNum()], playingCards[getRandomNum()]];
 
+    for (let dealerCard of dealerCards) {
+      // Removing the played cards of the dealer
+      playingCards = playingCards.filter((card) => card.id !== dealerCard.id);
+    }
     if (!isSplit) {
       playerCards = [
         playingCards[getRandomNum()],
@@ -113,10 +117,6 @@
     for (let playerCard of playerCards) {
       // Removing the played cards of the player
       playingCards = playingCards.filter((card) => card.id !== playerCard.id);
-    }
-    for (let dealerCard of dealerCards) {
-      // Removing the played cards of the dealer
-      playingCards = playingCards.filter((card) => card.id !== dealerCard.id);
     }
   }
 
@@ -258,8 +258,8 @@
           //EXPERIMENTAL
           await tick();
           dealerCards.push(playingCards[getRandomNum()]);
-          checkGame();
         }
+        checkGame();
       }
     }
   }
@@ -301,7 +301,7 @@
   }
 
   // TODO: eğer aşağıdakilerden bazıları eligible değilse, eligible olmayanların butonları grayed out olsun
-  function action(actionDesc) {
+  async function action(actionDesc) {
     if (actionDesc === "TAKE") {
       if (doubledownCardTakeCount < 1) {
         playerCards.push(playingCards[getRandomNum()]); // player takes a card
@@ -355,7 +355,7 @@
         isDoubledown = true;
         stateText = "Doubling down.";
         playerCards.push(playingCards[getRandomNum()]);
-        dealerCheck();
+        await dealerCheck();
         checkGame();
       } else {
         stateText = "You can't double down right now.";
