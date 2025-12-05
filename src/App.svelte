@@ -322,7 +322,6 @@
       setTimeout(() => {
         takeDisabled = false;
         checkGame();
-        dealerCheck();
       }, 500);
       checkSplitting();
 
