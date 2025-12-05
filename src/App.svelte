@@ -95,7 +95,7 @@
 
   function selectCards() {
     // eğer kartlar bitmişse onları yeniliyoruz
-    if (playingCards.length <= 12) {
+    if (playingCards.length <= 16) {
       playingCards = [...cards];
     }
     // after that, we give cards to the player and the dealer
@@ -210,6 +210,7 @@
     isDoubledown = false;
     isSwitching = false;
     await tick(); // bu ilk başta bj olup olmamış mı diye.
+    checkGame();
   }
 
   function gameLogic(dealerValue, playerValue) {
@@ -231,7 +232,7 @@
         else if (playerValue === 21) return "WIN";
         else if (dealerValue === 21) return "LOSE";
         else if (playerValue > 21) return "LOSE";
-        return null;
+        return 0;
       } else {
         if (dealerValue < 17) {
           if (dealerValue > 21) {
@@ -268,6 +269,7 @@
           //EXPERIMENTAL
           dealerCards.push(playingCards[getRandomNum()]);
         }
+        await tick();
         checkGame();
       }
     }
@@ -296,7 +298,7 @@
 
         case "LOSE":
           stateText = "You lost.";
-          currentMoney = currentMoney - multiplier * bet;
+          currentMoney = currentMoney - bet * multiplier;
           roundStarted = false;
           isSwitching = true;
           isDoubledown = false;
