@@ -1,12 +1,10 @@
 <script>
   import "./app.css";
-  import { fly, slide, fade } from "svelte/transition";
+  import { fly, fade } from "svelte/transition";
   import { tick } from "svelte";
-  import { readonly } from "svelte/store";
-  import { preventDefault } from "svelte/legacy";
   const DEFAULT_ACE_VALUE = 11; // the default value of the ace card
   let currentMoney = $state(1000); // the player starts with 1000 units of money
-  let bet = $state(100);
+  let bet = $state(100); // default bet 100 birim
   let isStarted = $state(false);
   let isStay = $state(false);
   let isSwitching = $state(false);
@@ -14,16 +12,19 @@
   let isSplit = $state(false);
   // oyuncu double down dediği zaman
   let isDoubledown = $state(false);
-  let doubledownCardTakeCount = $state(0);
   // cards of the dealer and the player.
   let dealerCards = $state([]);
   let playerCards = $state([]);
+  // cards of the dealer that will be shown depending on the situation
+  let shownDealerCards = $state([]);
   // Text displayed on the screen.
   let stateText = $state("");
   // Stores the value of the second hand.
   let secondHand = $state([]);
   // secondhand oynanma durumunu tutuyor
   let isSecondHand = $state(false);
+  // state of the take button being disabled
+  let takeDisabled = $state(false);
   // If the player ran out of money
   let isBroke = $state(false);
   // Score of the dealer
@@ -42,7 +43,7 @@
     { id: 7, value: "7", suit: "spades" },
     { id: 8, value: "8", suit: "spades" },
     { id: 9, value: "9", suit: "spades" },
-    { id: 10, value: "T", suit: "spades" },
+    { id: 10, value: "10", suit: "spades" },
     { id: 11, value: "J", suit: "spades" },
     { id: 12, value: "Q", suit: "spades" },
     { id: 13, value: "K", suit: "spades" },
@@ -55,7 +56,7 @@
     { id: 20, value: "7", suit: "hearts" },
     { id: 21, value: "8", suit: "hearts" },
     { id: 22, value: "9", suit: "hearts" },
-    { id: 23, value: "T", suit: "hearts" },
+    { id: 23, value: "10", suit: "hearts" },
     { id: 24, value: "J", suit: "hearts" },
     { id: 25, value: "Q", suit: "hearts" },
     { id: 26, value: "K", suit: "hearts" },
@@ -68,7 +69,7 @@
     { id: 33, value: "7", suit: "diamonds" },
     { id: 34, value: "8", suit: "diamonds" },
     { id: 35, value: "9", suit: "diamonds" },
-    { id: 36, value: "T", suit: "diamonds" },
+    { id: 36, value: "10", suit: "diamonds" },
     { id: 37, value: "J", suit: "diamonds" },
     { id: 38, value: "Q", suit: "diamonds" },
     { id: 39, value: "K", suit: "diamonds" },
@@ -81,7 +82,7 @@
     { id: 46, value: "7", suit: "clubs" },
     { id: 47, value: "8", suit: "clubs" },
     { id: 48, value: "9", suit: "clubs" },
-    { id: 49, value: "T", suit: "clubs" },
+    { id: 49, value: "10", suit: "clubs" },
     { id: 50, value: "J", suit: "clubs" },
     { id: 51, value: "Q", suit: "clubs" },
     { id: 52, value: "K", suit: "clubs" },
@@ -121,9 +122,18 @@
   }
 
   $effect(() => {
+    if (isStay || isSwitching) {
+      setTimeout(() => {
+        shownDealerCards = dealerCards;
+      }, 200);
+    } else {
+      shownDealerCards = [dealerCards[0]];
+    }
+  });
+
+  $effect(() => {
     // paramız biterse oyun bitiyor...
     if (currentMoney <= 0) {
-      stateText = "You've ran out of money, please leave the casino now.";
       isStarted = false;
       isBroke = true;
     }
@@ -142,8 +152,7 @@
       } else if (
         item.value === "J" ||
         item.value === "Q" ||
-        item.value === "K" ||
-        item.value === "T"
+        item.value === "K"
       ) {
         //bu kartların hepsi 10 eder
         sum = 10 + sum;
@@ -179,7 +188,7 @@
         checkGame(); // eğer daha ilk elden şanslı olarak 21 yaparsa herhangi bir taraf, direk kazanır
       } else {
         stateText = "Invalid bet amount.";
-        bet = null;
+        bet = 100;
         return;
       }
     }
@@ -200,18 +209,20 @@
     roundStarted = true;
     isDoubledown = false;
     isSwitching = false;
-    doubledownCardTakeCount = 0;
     await tick(); // bu ilk başta bj olup olmamış mı diye.
-    checkGame();
   }
 
   function gameLogic(dealerValue, playerValue) {
     // Dealer takes a card.
     if (isDoubledown) {
+      if (playerValue > 21) return "LOSE";
+      if (dealerValue > 21) return "WIN";
+
       if (dealerValue === playerValue)
         return "PUSH"; // First checking for a push.
       // If we are in a "stay" state
       else if (playerValue > dealerValue) return "WIN";
+      else if (dealerValue >= 21) return "LOSE";
       else if (dealerValue > playerValue) return "LOSE";
     } else {
       if (!isStay) {
@@ -249,14 +260,12 @@
         checkGame();
       } else {
         //EXPERIMENTAL
-        await tick();
         dealerCards.push(playingCards[getRandomNum()]);
-        checkGame(); //TODO:
+        checkGame();
       }
       if (isStay || isDoubledown) {
         while (dealerScore < 17) {
           //EXPERIMENTAL
-          await tick();
           dealerCards.push(playingCards[getRandomNum()]);
         }
         checkGame();
@@ -264,36 +273,38 @@
     }
   }
 
-  function checkGame() {
+  async function checkGame() {
     // Money is deducted when the round starts.
     switch (gameLogic(dealerScore, playerScore)) {
       case "WIN":
-        currentMoney += bet * 2;
+        currentMoney = currentMoney + bet;
         stateText = "You won!";
         roundStarted = false;
         isSwitching = true;
+        isDoubledown = false;
         break;
 
       case "BJ":
-        currentMoney += bet * 3;
+        currentMoney = currentMoney + bet * 1.5;
         stateText = "You hit blackjack!";
         roundStarted = false;
         isSwitching = true;
-
+        isDoubledown = false;
         break;
 
       case "LOSE":
         stateText = "You lost.";
-        currentMoney -= bet;
+        currentMoney = currentMoney - bet;
         roundStarted = false;
         isSwitching = true;
-
+        isDoubledown = false;
         break;
 
       case "PUSH":
         stateText = "Push.";
         roundStarted = false;
-        isSwitching = false;
+        isSwitching = true;
+        isDoubledown = false;
         break;
       default:
         return;
@@ -303,17 +314,24 @@
   // TODO: eğer aşağıdakilerden bazıları eligible değilse, eligible olmayanların butonları grayed out olsun
   async function action(actionDesc) {
     if (actionDesc === "TAKE") {
+      takeDisabled = true;
       playerCards.push(playingCards[getRandomNum()]); // player takes a card
+      setTimeout(() => {
+        takeDisabled = false;
+        checkGame();
+        dealerCheck();
+      }, 500);
       checkSplitting();
-      checkGame();
 
-      dealerCheck();
+      //TODO: burada yine dealer kartları önce gözüküyor.
     } else if (actionDesc === "STAY") {
       if (!isDoubledown) {
         isStay = true;
         checkSplitting();
-        checkGame();
-        dealerCheck();
+        setTimeout(() => {
+          dealerCheck();
+          checkGame();
+        }, 300);
       } else {
         stateText = "You can't stay while doubling down.";
       }
@@ -329,8 +347,8 @@
         ) {
           // Splitting allowed.
           isSplit = true;
-          secondHand = [playerCards[1]];
-          playerCards = [playerCards[0]];
+          secondHand = [playerCards[1], playingCards[getRandomNum()]];
+          playerCards = [playerCards[0], playingCards[getRandomNum()]];
           stateText = "You're playing with your first hand.";
           checkSplitting();
         }
@@ -349,9 +367,12 @@
         bet = bet * 2;
         isDoubledown = true;
         stateText = "Doubling down.";
-        playerCards.push(playingCards[getRandomNum()]);
-        await dealerCheck();
+        playerCards.push(playingCards[getRandomNum()]); // player takes a card
+        checkSplitting();
+        dealerCheck();
         checkGame();
+        bet = bet / 2; // double down bittikten sonra beti geri eski durumuna koyuyoruz.
+        console.log(bet);
       } else {
         stateText = "You can't double down right now.";
       }
@@ -368,11 +389,11 @@
 </script>
 
 <main
-  class="text-lg flex flex-col md:grid md:grid-cols-[35%_65%] lg:grid-cols-[25%_75%] md:grid-rows-1 h-screen"
+  class="text-lg flex flex-col md:grid md:grid-cols-[35%_65%] lg:grid-cols-[25%_75%] md:grid-rows-1 min-h-screen h-screen"
 >
   <!-- Betting area -->
   {#if !isBroke}
-    <div class="p-3 bg-[#213744] text-[#bbcad4] md:h-full">
+    <div class="p-3 bg-[#213744] text-[#bbcad4]">
       <div
         class="m-auto md:max-w-100 max-w-none px-6 pl-0 md:p-0 sm:w-[70%] w-[90%] md:w-auto"
       >
@@ -393,11 +414,14 @@
             class="grid grid-cols-2 grid-rows-2 gap-3 gap-y-4 mt-4 text-base"
           >
             <div
-              class="relative w-full {(!isStarted || !roundStarted) &&
+              class="relative w-full {(!isStarted ||
+                !roundStarted ||
+                takeDisabled) &&
                 'pointer-events-none opacity-50'}"
             >
               <div class="absolute w-full h-full bg-[#2e4c7d] rounded-lg"></div>
               <button
+                disabled={takeDisabled}
                 onclick={() => action("TAKE")}
                 class="py-2.5 px-2 flex w-full border border-[#2e4c7d] flex-row justify-between items-center cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
               >
@@ -503,7 +527,7 @@
         </div>
       </div>
     </div>
-    <div class="bg-[#0f212f] p-4 h-full flex flex-row">
+    <div class="bg-[#0f212f] p-4 flex flex-row h-full">
       {#if isStarted}
         <!-- oyunun oynandığı kısım -->
         <div
@@ -522,80 +546,42 @@
             ></div>
           </div>
 
-          <!-- kurpiyerin açık kartını göstermek için -->
-
-          {#if isStay || isSwitching}
-            <div class="grid grid-rows-[15%_85%] grid-cols-1 h-full w-full">
-              <div class="flex justify-center items-center">
-                <div
-                  class="rounded-full mb-4 md:mb-0 text-lg w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
-                >
-                  Dealer
-                </div>
-              </div>
-
-              <div class="flex flex-row flex-1 flex-wrap w-full justify-center">
-                {#each dealerCards as card, i}
-                  <div
-                    in:fly={{ y: 200, duration: 200, delay: i * 200 }}
-                    out:fade
-                    class="bg-[#c0d7d6] m-2 h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
-                  >
-                    <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
-                    <div class="w-full h-full ml-7 mt-5 text-5xl">
-                      {#if card?.suit === "clubs"}
-                        ♣️
-                      {/if}
-                      {#if card?.suit === "spades"}
-                        ♠️
-                      {/if}
-                      {#if card?.suit === "hearts"}
-                        ♥️
-                      {/if}
-                      {#if card?.suit === "diamonds"}
-                        ♦️
-                      {/if}
-                    </div>
-                  </div>
-                {/each}
+          <div class="grid grid-rows-[15%_85%] grid-cols-1 h-full w-full">
+            <div class="flex justify-center items-center">
+              <div
+                class="rounded-full text-lg w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
+              >
+                Dealer
               </div>
             </div>
-          {:else}
-            <div class="grid grid-rows-[15%_85%] grid-cols-1 h-full w-full">
-              <div class="flex justify-center items-center">
+            <div
+              class="flex flex-row flex-1 flex-wrap gap-4 mt-3 justify-center"
+            >
+              {#each shownDealerCards as card}
                 <div
-                  class="rounded-full text-lg mb-4 md:mb-0 w-fit h-fit p-1 px-3 text-[#bbcad4] bg-[#152c39]"
-                >
-                  Dealer
-                </div>
-              </div>
-              <div class="flex flex-row justify-center">
-                <div
-                  in:fly={{ y: 200, duration: 200, delay: 300 }}
-                  out:fade
+                  transition:fade
                   class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
                 >
-                  <p class="font-bold m-2 ml-2.5 text-3xl">
-                    {dealerCards[0]?.value}
-                  </p>
+                  <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
                   <div class="w-full h-full ml-7 mt-5 text-5xl">
-                    {#if dealerCards[0]?.suit === "clubs"}
+                    {#if card?.suit === "clubs"}
                       ♣️
                     {/if}
-                    {#if dealerCards[0]?.suit === "spades"}
+                    {#if card?.suit === "spades"}
                       ♠️
                     {/if}
-                    {#if dealerCards[0]?.suit === "hearts"}
+                    {#if card?.suit === "hearts"}
                       ♥️
                     {/if}
-                    {#if dealerCards[0]?.suit === "diamonds"}
+                    {#if card?.suit === "diamonds"}
                       ♦️
                     {/if}
                   </div>
                 </div>
-              </div>
+              {/each}
             </div>
-          {/if}
+          </div>
+
           <div class="grid grid-rows-[15%_85%] grid-cols-1 h-full w-full">
             <div class="flex justify-center items-center">
               <div
@@ -609,7 +595,7 @@
             >
               {#each playerCards as card, i}
                 <div
-                  in:fly={{ y: 200, duration: 200, delay: i * 200 }}
+                  in:fly={{ y: 200, duration: 200, delay: i * 100 }}
                   out:fade
                   class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
                 >
