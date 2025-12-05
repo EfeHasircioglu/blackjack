@@ -639,7 +639,20 @@
       {/if}
     </div>
   {:else}
-    <div class="text-4xl m-auto">You've gone bankrupt.</div>
+    <div
+      transition:fade
+      class="flex flex-col gap-3 items-center bg-[#213744] text-[#bbcad4] justify-center md:text-4xl h-screen w-screen text-3xl"
+    >
+      <span class="mx-1">You've gone bankrupt.</span>
+      <div class="relative w-fit mt-4 mx-3">
+        <div class="absolute w-full mx-3 h-full bg-[#2baf3d] rounded-lg"></div>
+        <button
+          onclick={() => location.reload()}
+          class="py-2.5 px-2 mx-3 flex flex-row gap-2 border border-[#2baf3d] w-full cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#0f8f20] rounded-lg"
+          ><div class="text-center text-2xl w-full">Try Again</div></button
+        >
+      </div>
+    </div>
   {/if}
 </main>
 
