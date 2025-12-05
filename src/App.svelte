@@ -274,40 +274,43 @@
   }
 
   async function checkGame() {
-    // Money is deducted when the round starts.
-    switch (gameLogic(dealerScore, playerScore)) {
-      case "WIN":
-        currentMoney = currentMoney + bet;
-        stateText = "You won!";
-        roundStarted = false;
-        isSwitching = true;
-        isDoubledown = false;
-        break;
+    if (roundStarted) {
+      let multiplier = isDoubledown ? 2 : 1;
+      // Money is deducted when the round starts.
+      switch (gameLogic(dealerScore, playerScore)) {
+        case "WIN":
+          currentMoney = currentMoney + multiplier * bet;
+          stateText = "You won!";
+          roundStarted = false;
+          isSwitching = true;
+          isDoubledown = false;
+          break;
 
-      case "BJ":
-        currentMoney = currentMoney + bet * 1.5;
-        stateText = "You hit blackjack!";
-        roundStarted = false;
-        isSwitching = true;
-        isDoubledown = false;
-        break;
+        case "BJ":
+          currentMoney = currentMoney + multiplier * (bet * 1.5);
+          stateText = "You hit blackjack!";
+          roundStarted = false;
+          isSwitching = true;
+          isDoubledown = false;
+          break;
 
-      case "LOSE":
-        stateText = "You lost.";
-        currentMoney = currentMoney - bet;
-        roundStarted = false;
-        isSwitching = true;
-        isDoubledown = false;
-        break;
+        case "LOSE":
+          stateText = "You lost.";
+          currentMoney = currentMoney - multiplier * bet;
+          roundStarted = false;
+          isSwitching = true;
+          isDoubledown = false;
+          break;
 
-      case "PUSH":
-        stateText = "Push.";
-        roundStarted = false;
-        isSwitching = true;
-        isDoubledown = false;
-        break;
-      default:
-        return;
+        case "PUSH":
+          stateText = "Push.";
+          roundStarted = false;
+          isSwitching = true;
+          isDoubledown = false;
+          break;
+        default:
+          return;
+      }
     }
   }
 
@@ -364,15 +367,12 @@
         !isDoubledown &&
         (!isSplit || !isSecondHand)
       ) {
-        bet = bet * 2;
         isDoubledown = true;
         stateText = "Doubling down.";
         playerCards.push(playingCards[getRandomNum()]); // player takes a card
         checkSplitting();
         dealerCheck();
         checkGame();
-        bet = bet / 2; // double down bittikten sonra beti geri eski durumuna koyuyoruz.
-        console.log(bet);
       } else {
         stateText = "You can't double down right now.";
       }
@@ -557,9 +557,10 @@
             <div
               class="flex flex-row flex-1 flex-wrap gap-4 mt-3 justify-center"
             >
-              {#each shownDealerCards as card}
+              {#each shownDealerCards as card (card)}
                 <div
-                  transition:fade
+                  in:fly={{ y: 200, duration: 200, delay: 200 }}
+                  out:fade={{ duration: 50 }}
                   class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
                 >
                   <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
@@ -593,10 +594,10 @@
             <div
               class="flex flex-row flex-1 flex-wrap gap-4 mt-3 justify-center"
             >
-              {#each playerCards as card, i}
+              {#each playerCards as card, i (card)}
                 <div
-                  in:fly={{ y: 200, duration: 200, delay: i * 100 }}
-                  out:fade
+                  in:fly={{ y: 200, duration: 200, delay: 100 + i * 100 }}
+                  out:fade={{ duration: 50 }}
                   class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
                 >
                   <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
