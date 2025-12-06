@@ -123,16 +123,14 @@
 
   $effect(() => {
     if (isStay || isSwitching) {
-      setTimeout(() => {
-        shownDealerCards = dealerCards;
-      }, 200);
+      shownDealerCards = dealerCards;
     } else {
       shownDealerCards = [dealerCards[0]];
     }
   });
 
   $effect(() => {
-    // paramız biterse oyun bitiyor...
+    // paramız biterse oyun bitiyor..
     if (currentMoney <= 0) {
       isStarted = false;
       isBroke = true;
@@ -354,6 +352,7 @@
           secondHand = [playerCards[1], playingCards[getRandomNum()]];
           playerCards = [playerCards[0], playingCards[getRandomNum()]];
           stateText = "You're playing with your first hand.";
+          checkGame(); // eğer ilk elden blackjack olursa diye.
           checkSplitting();
         }
       } else {
@@ -561,7 +560,7 @@
               {#each shownDealerCards as card (card)}
                 <div
                   in:fly={{ y: 200, duration: 200, delay: 200 }}
-                  out:fade={{ duration: 50 }}
+                  out:fade={{ duration: 200 }}
                   class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
                 >
                   <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
