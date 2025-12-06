@@ -106,10 +106,16 @@
       playingCards = playingCards.filter((card) => card.id !== dealerCard.id);
     }
     if (!isSplit) {
-      playerCards = [
-        playingCards[getRandomNum()],
-        playingCards[getRandomNum()],
-      ];
+      //! temporary solution, gerçek sorunu çözmek yerine koli bandıyla kapatmak gibi.
+      while (playerCards.length < 2) {
+        if (playerCards.length === 1) {
+          playerCards.push(playingCards[getRandomNum()]);
+        }
+        playerCards = [
+          playingCards[getRandomNum()],
+          playingCards[getRandomNum()],
+        ];
+      }
     } else if (isSplit) {
       playerCards = secondHand;
       isSecondHand = true;
@@ -201,6 +207,8 @@
     dealerCards = [];
 
     selectCards(); // Then, we select new cards.
+    console.log("p " + playerScore);
+    console.log("d " + dealerScore);
     if (isSecondHand) {
       stateText = "Now playing with the second hand.";
     } else {
@@ -264,13 +272,12 @@
         stateText = "Dealer is on hold.";
         checkGame();
       } else {
-        //EXPERIMENTAL
         dealerCards.push(playingCards[getRandomNum()]);
         checkGame();
       }
       if (isStay || isDoubledown) {
-        while (dealerScore < 17) {
-          //EXPERIMENTAL
+        while (dealerScore <= 17) {
+          // dealer gets cards until they reach 17
           dealerCards.push(playingCards[getRandomNum()]);
         }
         await tick();
@@ -328,17 +335,15 @@
       setTimeout(() => {
         takeDisabled = false;
         checkGame();
+        checkSplitting();
       }, 500);
-      checkSplitting();
-
-      //TODO: burada yine dealer kartları önce gözüküyor.
     } else if (actionDesc === "STAY") {
       if (!isDoubledown) {
         isStay = true;
-        checkSplitting();
         setTimeout(() => {
           dealerCheck();
           checkGame();
+          checkSplitting();
         }, 300);
       } else {
         stateText = "You can't stay while doubling down.";

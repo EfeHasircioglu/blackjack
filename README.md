@@ -9,3 +9,8 @@ This is a standard game of blackjack. Although it has issues, it is mostly playa
 - Changing the place of the status indicator to between the dealer cards and the player cards.
 - Adding neat, satisfying sound effects.
 - Making the game feel a bit more.. lively?
+
+## Known bugs
+
+- Sometimes, for an unknown reason, the game comes to a standstill.
+- Sometimes, also for an unknown reason, the player only recieves one card.
