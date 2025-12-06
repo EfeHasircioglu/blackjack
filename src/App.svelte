@@ -124,10 +124,12 @@
   $effect(() => {
     if (isStay || isSwitching) {
       shownDealerCards = dealerCards;
-    } else {
-      shownDealerCards = [dealerCards[0]];
     }
   });
+
+  function viewDealerCards() {
+    shownDealerCards = [dealerCards[0]];
+  }
 
   $effect(() => {
     // paramız biterse oyun bitiyor..
@@ -181,6 +183,8 @@
         // await tick(), animasyonların, o elementler ilk doma ve aslında array'a eklenirken animasyon olması için. ilk kartlar eklenir, sonra animasyon ile gösterilir
         await tick();
         selectCards();
+        await tick();
+        viewDealerCards();
         // TODO: bu çalışmıyor!!!
         await tick(); // bu ilk başta bj olup olmamış mı diye.
         checkGame(); // eğer daha ilk elden şanslı olarak 21 yaparsa herhangi bir taraf, direk kazanır
@@ -202,7 +206,8 @@
     } else {
       stateText = "";
     }
-
+    await tick();
+    viewDealerCards();
     isStay = false;
     roundStarted = true;
     isDoubledown = false;
@@ -233,7 +238,8 @@
         return 0;
       } else {
         if (dealerValue < 17) {
-          if (dealerValue > 21) {
+          if (playerValue > 21) return "LOSE";
+          else if (dealerValue > 21) {
             return "WIN";
           } else if (dealerValue > playerValue) {
             return "LOSE";
@@ -596,7 +602,7 @@
             >
               {#each playerCards as card, i (card)}
                 <div
-                  in:fly={{ y: 200, duration: 200, delay: 100 + i * 100 }}
+                  in:fly={{ y: 200, duration: 200, delay: 200 + i * 50 }}
                   out:fade={{ duration: 50 }}
                   class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
                 >
