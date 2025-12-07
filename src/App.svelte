@@ -107,10 +107,8 @@
     }
     if (!isSplit) {
       //! temporary solution, gerçek sorunu çözmek yerine koli bandıyla kapatmak gibi.
+      // eğer herhangi bir nedenden dolayı oyuncuya yanlızca bir kart verilmişse o zaman kartları 2 olana kadar kart veriyoruz.
       while (playerCards.length < 2) {
-        if (playerCards.length === 1) {
-          playerCards.push(playingCards[getRandomNum()]);
-        }
         playerCards = [
           playingCards[getRandomNum()],
           playingCards[getRandomNum()],
