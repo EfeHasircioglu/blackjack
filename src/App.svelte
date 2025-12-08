@@ -33,6 +33,16 @@
   let playerScore = $derived(transformToNumerical(playerCards));
   // If the player finishes a round
   let roundStarted = $state(false);
+  // the code about sounds
+  // SOUND LOGIC WILL BE REPLACED WITH THE AUDIO PROCESSOR LIBRARY WHEN THAT FINISHES
+  // defining the sounds that will be used
+  const clickOMDSound = new Audio("/sounds/click-1.wav");
+  const clickOMUSound = new Audio("/sounds/click-2.wav");
+  const winSound = new Audio("/sounds/win.wav");
+  const cardPlacementSound = new Audio("/sounds/card-placement.wav");
+  const loseSound = new Audio("/sounds/lose.wav");
+  const bigWinSound = new Audio("/sounds/big-win.wav");
+  const bankrupcySound = new Audio("/sounds/bankrupcy-sound.wav");
   const cards = [
     { id: 1, value: "A", suit: "spades" },
     { id: 2, value: "2", suit: "spades" },
@@ -87,41 +97,44 @@
     { id: 51, value: "Q", suit: "clubs" },
     { id: 52, value: "K", suit: "clubs" },
   ];
-  let playingCards = $state([...cards]);
-  function getRandomNum() {
+  let playingCards = $state(shuffle([...cards]));
+  // random number helper function
+  function getRandomNum() { 
     let num = Math.floor(Math.random() * playingCards.length);
     return num;
   }
 
-  function selectCards() {
-    // eğer kartlar bitmişse onları yeniliyoruz
-    if (playingCards.length <= 16) {
-      playingCards = [...cards];
-    }
-    // after that, we give cards to the player and the dealer
-    dealerCards = [playingCards[getRandomNum()], playingCards[getRandomNum()]];
+  // shuffling helper function (fisher-yates shuffle)
+  function shuffle(array) {
+    let currentIndex = array.length;
 
-    for (let dealerCard of dealerCards) {
-      // Removing the played cards of the dealer
-      playingCards = playingCards.filter((card) => card.id !== dealerCard.id);
+    // if there are elements to shuffle..
+    while (currentIndex != 0) {
+      //pick a remaining element..
+      let randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+
+      // swap with the current element.
+      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
     }
+    return array;
+  }
+
+  function selectCards() {
+    // burada kartlar ilk olarak karıştırılıyor, sonra sondan çekiliyor, gerçek hayattaki gibi.
+    // eğer kartlar bitmişse onları yeniliyoruz, ve karıştırıyoruz.
+    if (playingCards.length <= 12) {
+      playingCards = shuffle([...cards]);
+    }
+    // pop, hem seçer hem de siler.
+    dealerCards = [playingCards.pop(), playingCards.pop()];
     if (!isSplit) {
-      //! temporary solution, gerçek sorunu çözmek yerine koli bandıyla kapatmak gibi.
-      // eğer herhangi bir nedenden dolayı oyuncuya yanlızca bir kart verilmişse o zaman kartları 2 olana kadar kart veriyoruz.
-      while (playerCards.length < 2) {
-        playerCards = [
-          playingCards[getRandomNum()],
-          playingCards[getRandomNum()],
-        ];
-      }
+      // burada da oyuncunun kartları seçiliyor
+        playerCards = [playingCards.pop(), playingCards.pop()];
+      
     } else if (isSplit) {
       playerCards = secondHand;
       isSecondHand = true;
-    }
-    // oyuncunun kartları oyun destesinden çıkartılır
-    for (let playerCard of playerCards) {
-      // Removing the played cards of the player
-      playingCards = playingCards.filter((card) => card.id !== playerCard.id);
     }
   }
 
@@ -139,7 +152,9 @@
     // paramız biterse oyun bitiyor..
     if (currentMoney <= 0) {
       isStarted = false;
-      isBroke = true;
+      setTimeout(() => {
+        isBroke = true;
+      }, 2000)
     }
   });
 
@@ -205,8 +220,6 @@
     dealerCards = [];
 
     selectCards(); // Then, we select new cards.
-    console.log("p " + playerScore);
-    console.log("d " + dealerScore);
     if (isSecondHand) {
       stateText = "Now playing with the second hand.";
     } else {
@@ -292,6 +305,8 @@
         case "WIN":
           currentMoney = currentMoney + multiplier * bet;
           stateText = "You won!";
+          // playing the win sound
+          winSound.play();
           roundStarted = false;
           isSwitching = true;
           isDoubledown = false;
@@ -300,6 +315,8 @@
         case "BJ":
           currentMoney = currentMoney + multiplier * (bet * 1.5);
           stateText = "You hit blackjack!";
+          //playing the bj sound
+          bigWinSound.play();
           roundStarted = false;
           isSwitching = true;
           isDoubledown = false;
@@ -308,6 +325,8 @@
         case "LOSE":
           stateText = "You lost.";
           currentMoney = currentMoney - bet * multiplier;
+          //playing the lose sound
+          loseSound.play();
           roundStarted = false;
           isSwitching = true;
           isDoubledown = false;
@@ -430,6 +449,8 @@
             >
               <div class="absolute w-full h-full bg-[#2e4c7d] rounded-lg"></div>
               <button
+                onmousedown={() => clickOMDSound.play()}
+                onmouseup={() => clickOMUSound.play()}
                 disabled={takeDisabled}
                 onclick={() => action("TAKE")}
                 class="py-2.5 px-2 flex w-full border border-[#2e4c7d] flex-row justify-between items-center cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
@@ -453,6 +474,8 @@
             >
               <div class="absolute w-full h-full bg-[#2e4c7d] rounded-lg"></div>
               <button
+                onmousedown={() => clickOMDSound.play()}
+                onmouseup={() => clickOMUSound.play()}
                 onclick={() => action("STAY")}
                 class="py-2.5 px-2 flex justify-between items-center border border-[#2e4c7d] w-full flex-row cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
               >
@@ -479,6 +502,8 @@
               <div class="absolute w-full h-full bg-[#2e4c7d] rounded-lg"></div>
 
               <button
+                onmousedown={() => clickOMDSound.play()}
+                onmouseup={() => clickOMUSound.play()}
                 onclick={() => action("SPLIT")}
                 class="py-2.5 px-2 justify-between items-center border border-[#2e4c7d] flex w-full flex-row cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
                 ><div>Split</div>
@@ -502,6 +527,8 @@
             >
               <div class="absolute w-full h-full bg-[#2e4c7d] rounded-lg"></div>
               <button
+                onmousedown={() => clickOMDSound.play()}
+                onmouseup={() => clickOMUSound.play()}
                 onclick={() => action("DOUBLEDOWN")}
                 class="py-2.5 px-2 justify-between items-center flex border border-[#2e4c7d] w-full flex-row cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
                 ><div>Double</div>
@@ -527,6 +554,8 @@
         >
           <div class="absolute w-full h-full bg-[#2baf3d] rounded-lg"></div>
           <button
+          onmousedown={() => clickOMDSound.play()}
+          onmouseup={() => clickOMUSound.play()}
             onclick={() => {
               !isStarted ? startGame() : redistributeCards();
             }}
@@ -570,6 +599,7 @@
                 <div
                   in:fly={{ y: 200, duration: 200, delay: 200 }}
                   out:fade={{ duration: 200 }}
+                  onintrostart={() => cardPlacementSound.play()}
                   class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
                 >
                   <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
@@ -603,8 +633,10 @@
             <div
               class="flex flex-row flex-1 flex-wrap gap-4 mt-3 justify-center"
             >
+            <svelte:boundary onerror={(e)=> console.error("Exception while displaying or handling cards. \n" + e)}>
               {#each playerCards as card, i (card)}
                 <div
+                  onintrostart={() => cardPlacementSound.play()}
                   in:fly={{ y: 200, duration: 200, delay: 200 + i * 50 }}
                   out:fade={{ duration: 50 }}
                   class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
@@ -626,6 +658,7 @@
                   </div>
                 </div>
               {/each}
+              </svelte:boundary>
             </div>
           </div>
         </div>
