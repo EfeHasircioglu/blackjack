@@ -2,6 +2,7 @@
   import "./app.css";
   import { fly, fade } from "svelte/transition";
   import { tick } from "svelte";
+  import { play } from "./soundManager.svelte";
   const DEFAULT_ACE_VALUE = 11; // the default value of the ace card
   let currentMoney = $state(1000); // the player starts with 1000 units of money
   let bet = $state(100); // default bet 100 birim
@@ -36,13 +37,7 @@
   // the code about sounds
   // SOUND LOGIC WILL BE REPLACED WITH THE AUDIO PROCESSOR LIBRARY WHEN THAT FINISHES
   // defining the sounds that will be used
-  const clickOMDSound = new Audio("/sounds/click-1.wav");
-  const clickOMUSound = new Audio("/sounds/click-2.wav");
-  const winSound = new Audio("/sounds/win.wav");
-  const cardPlacementSound = new Audio("/sounds/card-placement.wav");
-  const loseSound = new Audio("/sounds/lose.wav");
-  const bigWinSound = new Audio("/sounds/big-win.wav");
-  const bankrupcySound = new Audio("/sounds/bankrupcy-sound.wav");
+
   const cards = [
     { id: 1, value: "A", suit: "spades" },
     { id: 2, value: "2", suit: "spades" },
@@ -99,7 +94,7 @@
   ];
   let playingCards = $state(shuffle([...cards]));
   // random number helper function
-  function getRandomNum() { 
+  function getRandomNum() {
     let num = Math.floor(Math.random() * playingCards.length);
     return num;
   }
@@ -115,7 +110,10 @@
       currentIndex--;
 
       // swap with the current element.
-      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex],
+        array[currentIndex],
+      ];
     }
     return array;
   }
@@ -130,8 +128,7 @@
     dealerCards = [playingCards.pop(), playingCards.pop()];
     if (!isSplit) {
       // burada da oyuncunun kartları seçiliyor
-        playerCards = [playingCards.pop(), playingCards.pop()];
-      
+      playerCards = [playingCards.pop(), playingCards.pop()];
     } else if (isSplit) {
       playerCards = secondHand;
       isSecondHand = true;
@@ -151,10 +148,11 @@
   $effect(() => {
     // paramız biterse oyun bitiyor..
     if (currentMoney <= 0) {
-      isStarted = false;
       setTimeout(() => {
         isBroke = true;
-      }, 2000)
+        play("BANKRUPCY");
+        isStarted = false;
+      }, 200);
     }
   });
 
@@ -306,7 +304,7 @@
           currentMoney = currentMoney + multiplier * bet;
           stateText = "You won!";
           // playing the win sound
-          winSound.play();
+          play("WIN");
           roundStarted = false;
           isSwitching = true;
           isDoubledown = false;
@@ -316,7 +314,7 @@
           currentMoney = currentMoney + multiplier * (bet * 1.5);
           stateText = "You hit blackjack!";
           //playing the bj sound
-          bigWinSound.play();
+          play("BIG_WIN");
           roundStarted = false;
           isSwitching = true;
           isDoubledown = false;
@@ -326,7 +324,7 @@
           stateText = "You lost.";
           currentMoney = currentMoney - bet * multiplier;
           //playing the lose sound
-          loseSound.play();
+          play("LOSE");
           roundStarted = false;
           isSwitching = true;
           isDoubledown = false;
@@ -449,8 +447,12 @@
             >
               <div class="absolute w-full h-full bg-[#2e4c7d] rounded-lg"></div>
               <button
-                onmousedown={() => clickOMDSound.play()}
-                onmouseup={() => clickOMUSound.play()}
+                onmousedown={() => {
+                  play("OMD");
+                }}
+                onmouseup={() => {
+                  play("OMU");
+                }}
                 disabled={takeDisabled}
                 onclick={() => action("TAKE")}
                 class="py-2.5 px-2 flex w-full border border-[#2e4c7d] flex-row justify-between items-center cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
@@ -473,27 +475,29 @@
                 'pointer-events-none opacity-50'}"
             >
               <div class="absolute w-full h-full bg-[#2e4c7d] rounded-lg"></div>
-              <button
-                onmousedown={() => clickOMDSound.play()}
-                onmouseup={() => clickOMUSound.play()}
-                onclick={() => action("STAY")}
-                class="py-2.5 px-2 flex justify-between items-center border border-[#2e4c7d] w-full flex-row cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
-              >
-                <div>Hold</div>
-                <div>
-                  <svg
-                    class="w-7 h-7"
-                    xmlns="http://www.w3.org/2000/svg"
-                    height="24px"
-                    viewBox="0 -960 960 960"
-                    width="24px"
-                    fill="#bbcad4"
-                    ><path
-                      d="M507-40q-93 0-171.5-47.5T209-215L60-463l20-20q16-16 38-17.5t40 11.5l122 90v-411q0-12 8.5-21t21.5-9q12 0 21 9t9 21v528L161-414l98 164q38 69 104 109.5T507-100q113 0 193-78t80-190v-402q0-12 8.5-21t21.5-9q12 0 21 9t9 21v402q0 137-97.5 232.5T507-40Zm-60-450v-400q0-12 9-21t21-9q13 0 21.5 9t8.5 21v400h-60Zm167 0v-360q0-12 8.5-21t21.5-9q12 0 21 9t9 21v360h-60ZM471-295Z"
-                    /></svg
-                  >
-                </div></button
-              >
+              <svelte:boundary onerror={() => console.error("error occured")}>
+                <button
+                  onmousedown={(e) => play("OMD")}
+                  onmouseup={() => play("OMU")}
+                  onclick={() => action("STAY")}
+                  class="py-2.5 px-2 flex justify-between items-center border border-[#2e4c7d] w-full flex-row cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
+                >
+                  <div>Hold</div>
+                  <div>
+                    <svg
+                      class="w-7 h-7"
+                      xmlns="http://www.w3.org/2000/svg"
+                      height="24px"
+                      viewBox="0 -960 960 960"
+                      width="24px"
+                      fill="#bbcad4"
+                      ><path
+                        d="M507-40q-93 0-171.5-47.5T209-215L60-463l20-20q16-16 38-17.5t40 11.5l122 90v-411q0-12 8.5-21t21.5-9q12 0 21 9t9 21v528L161-414l98 164q38 69 104 109.5T507-100q113 0 193-78t80-190v-402q0-12 8.5-21t21.5-9q12 0 21 9t9 21v402q0 137-97.5 232.5T507-40Zm-60-450v-400q0-12 9-21t21-9q13 0 21.5 9t8.5 21v400h-60Zm167 0v-360q0-12 8.5-21t21.5-9q12 0 21 9t9 21v360h-60ZM471-295Z"
+                      /></svg
+                    >
+                  </div></button
+                >
+              </svelte:boundary>
             </div>
             <div
               class="relative w-full {(!isStarted || !roundStarted) &&
@@ -502,8 +506,8 @@
               <div class="absolute w-full h-full bg-[#2e4c7d] rounded-lg"></div>
 
               <button
-                onmousedown={() => clickOMDSound.play()}
-                onmouseup={() => clickOMUSound.play()}
+                onmousedown={(e) => play("OMD")}
+                onmouseup={() => play("OMU")}
                 onclick={() => action("SPLIT")}
                 class="py-2.5 px-2 justify-between items-center border border-[#2e4c7d] flex w-full flex-row cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
                 ><div>Split</div>
@@ -527,8 +531,8 @@
             >
               <div class="absolute w-full h-full bg-[#2e4c7d] rounded-lg"></div>
               <button
-                onmousedown={() => clickOMDSound.play()}
-                onmouseup={() => clickOMUSound.play()}
+                onmousedown={(e) => play("OMD")}
+                onmouseup={() => play("OMU")}
                 onclick={() => action("DOUBLEDOWN")}
                 class="py-2.5 px-2 justify-between items-center flex border border-[#2e4c7d] w-full flex-row cursor-pointer -translate-y-0.75 active:translate-0 transition-transform bg-[#2f4553] rounded-lg"
                 ><div>Double</div>
@@ -554,8 +558,8 @@
         >
           <div class="absolute w-full h-full bg-[#2baf3d] rounded-lg"></div>
           <button
-          onmousedown={() => clickOMDSound.play()}
-          onmouseup={() => clickOMUSound.play()}
+            onmousedown={(e) => play("OMD")}
+            onmouseup={() => play("OMU")}
             onclick={() => {
               !isStarted ? startGame() : redistributeCards();
             }}
@@ -599,7 +603,7 @@
                 <div
                   in:fly={{ y: 200, duration: 200, delay: 200 }}
                   out:fade={{ duration: 200 }}
-                  onintrostart={() => cardPlacementSound.play()}
+                  onintrostart={() => play("PLACEMENT")}
                   class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
                 >
                   <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
@@ -633,31 +637,38 @@
             <div
               class="flex flex-row flex-1 flex-wrap gap-4 mt-3 justify-center"
             >
-            <svelte:boundary onerror={(e)=> console.error("Exception while displaying or handling cards. \n" + e)}>
-              {#each playerCards as card, i (card)}
-                <div
-                  onintrostart={() => cardPlacementSound.play()}
-                  in:fly={{ y: 200, duration: 200, delay: 200 + i * 50 }}
-                  out:fade={{ duration: 50 }}
-                  class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
-                >
-                  <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
-                  <div class="w-full h-full ml-7 mt-5 text-5xl">
-                    {#if card?.suit === "clubs"}
-                      ♣️
-                    {/if}
-                    {#if card?.suit === "spades"}
-                      ♠️
-                    {/if}
-                    {#if card?.suit === "hearts"}
-                      ♥️
-                    {/if}
-                    {#if card?.suit === "diamonds"}
-                      ♦️
-                    {/if}
+              <svelte:boundary
+                onerror={(e) =>
+                  console.error(
+                    "Exception while displaying or handling cards. \n" + e,
+                  )}
+              >
+                {#each playerCards as card, i (card)}
+                  <div
+                    onintrostart={() => {
+                      play("PLACEMENT");
+                    }}
+                    in:fly={{ y: 200, duration: 200, delay: 200 + i * 50 }}
+                    out:fade={{ duration: 50 }}
+                    class="bg-[#c0d7d6] h-30 w-20 md:h-40 md:min-w-30 md:w-30 rounded-sm outline-4 outline-[#577c7a]"
+                  >
+                    <p class="font-bold m-2 ml-2.5 text-3xl">{card?.value}</p>
+                    <div class="w-full h-full ml-7 mt-5 text-5xl">
+                      {#if card?.suit === "clubs"}
+                        ♣️
+                      {/if}
+                      {#if card?.suit === "spades"}
+                        ♠️
+                      {/if}
+                      {#if card?.suit === "hearts"}
+                        ♥️
+                      {/if}
+                      {#if card?.suit === "diamonds"}
+                        ♦️
+                      {/if}
+                    </div>
                   </div>
-                </div>
-              {/each}
+                {/each}
               </svelte:boundary>
             </div>
           </div>
