@@ -5,7 +5,7 @@
 		text,
 		disabled = false,
 		onclick,
-		gray,
+		gray = false,
 		iconDesc = "",
 	} = $props();
 
