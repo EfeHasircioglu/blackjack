@@ -45,7 +45,7 @@
     // paramız biterse oyun bitiyor..
     if (game.money <= 0) {
       setTimeout(() => {
-        game.isBroke = true;
+        game.isBankrupt = true;
         play("BANKRUPCY");
         game.isStarted = false;
       }, 200);
@@ -136,6 +136,7 @@
   }
 
   async function dealerCheck() {
+    // timeout eklenecek!
     if (!(game.playerScore > 21)) {
       if (game.dealerScore >= 17) {
         game.stateText = "Dealer is on hold.";
@@ -145,11 +146,10 @@
         checkGame();
       }
       if (game.isStay || game.isDoubledown) {
-        while (game.dealerScore <= 17) {
+        while (game.dealerScore < 17) {
           // dealer gets cards until they reach 17
           game.dealerCards.push(playingCards[getRandomNum(playingCards)]);
         }
-        await tick();
         checkGame();
       }
     }
@@ -192,7 +192,7 @@
 
         case "PUSH":
           game.stateText = "Push.";
-          game.roundStarted = false;
+          game.hasRoundStarted = false;
           game.isSwitching = true;
           game.isDoubledown = false;
           break;
@@ -206,22 +206,24 @@
   async function action(actionDesc) {
     if (actionDesc === "TAKE") {
       game.isTakeDisabled = true;
-      game.playerCards.push(playingCards[getRandomNum(playingCards)]); // player takes a card
+      // we delete the card just after we put it in the player's deck
+
+      let cardToPush = playingCards[getRandomNum(playingCards)];
+      game.playerCards.push(cardToPush);
+      playingCards = playingCards.filter((card) => card !== cardToPush);
       setTimeout(() => {
         game.isTakeDisabled = false;
         checkGame();
         checkSplitting();
-      }, 500);
+      }, 400);
     } else if (actionDesc === "STAY") {
       if (!game.isDoubledown) {
         game.isStay = true;
+        dealerCheck();
         setTimeout(() => {
-          if (!game.isSplit || game.isSplit && game.isSecondHand) {
-            dealerCheck();
-          }
           checkGame();
           checkSplitting();
-        }, 300);
+        }, 400);
       } else {
         game.stateText = "You can't stay while doubling down.";
       }

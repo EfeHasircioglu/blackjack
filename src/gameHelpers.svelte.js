@@ -34,6 +34,11 @@ function transformToNumerical(variable) {
 
 	return sum;
 }
+
+async function wait(time) {
+	new Promise(resolve => setTimeout(resolve, time))
+}
+
 function getRandomNum(array) {
 	let num = Math.floor(Math.random() * array.length);
 	return num;
@@ -58,4 +63,4 @@ function shuffle(array) {
 	return array;
 }
 
-export { transformToNumerical, getRandomNum, shuffle };
+export { transformToNumerical, getRandomNum, shuffle, wait };

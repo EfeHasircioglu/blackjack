@@ -81,7 +81,7 @@ if (AudioContext) {
 					placementSource.connect(audioContext.destination);
 					placementSource.start(0);
 					break;
-				case "BIGWIN":
+				case "BIG_WIN":
 					const bigWinSource = audioContext.createBufferSource();
 					bigWinSource.buffer = bigWinAudio;
 					bigWinSource.connect(audioContext.destination);
