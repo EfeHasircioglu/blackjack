@@ -32,7 +32,7 @@
   }
 
   $effect(() => {
-    if (game.isStay || game.isSwitching) {
+    if ((game.isStay || game.isSwitching) && !game.isSplit) {
       game.shownDealerCards = game.dealerCards;
     }
   });
@@ -156,7 +156,8 @@
   }
 
   async function checkGame() {
-    if (game.hasRoundStarted) {
+    // split için sadece checkSplitting çalışacak
+    if (game.hasRoundStarted && !game.isSplit) {
       let multiplier = game.isDoubledown ? 2 : 1;
       // Money is deducted when the round starts.
       switch (gameLogic(game.dealerScore, game.playerScore)) {
@@ -202,28 +203,71 @@
     }
   }
 
+  async function checkGameOnSplit() {
+    let currentResult = null;
+    if (game.playerScore === 21) currentResult = "BJ";
+    else if (game.playerScore > 21) currentResult = "LOSE";
+
+    if (!game.isSecondHand) {
+      if (currentResult === "BJ") {
+        game.stateText = "First hand Blackjack! Switching to second hand.";
+        play("BIG_WIN");
+      } else if (currentResult === "LOSE") {
+        game.stateText = "First hand bust. Switching to second hand.";
+        play("LOSE");
+      } else {
+        game.stateText = "Switching to second hand.";
+      }
+      setTimeout(() => {
+        game.firstHand = game.playerCards;
+        game.playerCards = game.secondHand;
+        game.isSecondHand = true;
+      }, 400);
+    } else {
+      game.secondHand = game.playerCards;
+      if (currentResult === "BJ") play("BIG_WIN");
+      if (currentResult === "LOSE") play("LOSE");
+      game.isStay = true;
+      await dealerCheck();
+      checkSplitting();
+    }
+  }
+
   // TODO: eğer aşağıdakilerden bazıları eligible değilse, eligible olmayanların butonları grayed out olsun
   async function action(actionDesc) {
     if (actionDesc === "TAKE") {
       game.isTakeDisabled = true;
       // we delete the card just after we put it in the player's deck
-
       let cardToPush = playingCards[getRandomNum(playingCards)];
       game.playerCards.push(cardToPush);
+      if (!game.isSecondHand && game.isSplit) {
+        game.firstHand = game.playerCards;
+      }
       playingCards = playingCards.filter((card) => card !== cardToPush);
       setTimeout(() => {
         game.isTakeDisabled = false;
-        checkGame();
-        checkSplitting();
+        if (game.isSplit) {
+          checkGameOnSplit();
+        } else {
+          checkGame();
+        }
+        //checkSplitting();
       }, 400);
     } else if (actionDesc === "STAY") {
       if (!game.isDoubledown) {
-        game.isStay = true;
-        dealerCheck();
-        setTimeout(() => {
-          checkGame();
-          checkSplitting();
-        }, 400);
+        if (game.isSplit && !game.isSecondHand) {
+          checkGameOnSplit();
+        } else {
+          game.isStay = true;
+          dealerCheck();
+          setTimeout(() => {
+            if (!game.isSplit) {
+              checkGame();
+            } else {
+              checkSplitting();
+            }
+          }, 400);
+        }
       } else {
         game.stateText = "You can't stay while doubling down.";
       }
@@ -231,6 +275,7 @@
       // Check eligibility of a split
       if (!game.isDoubledown && game.money > game.bet * 2) {
         if (game.isSplit) {
+          // todo: bunu sonra kaldır.
           game.stateText = "You are already splitting.";
         } else if (
           game.playerCards.length === 2 &&
@@ -243,12 +288,22 @@
             game.playerCards[1],
             playingCards[getRandomNum(playingCards)],
           ];
-          game.playerCards = [
+          game.firstHand = [
             game.playerCards[0],
             playingCards[getRandomNum(playingCards)],
           ];
+          game.playerCards = game.firstHand;
           game.stateText = "You're playing with your first hand.";
-          checkGame(); // eğer ilk elden blackjack olursa diye.
+          if (game.playerScore === 21) {
+            game.stateText = "You hit blackjack!";
+            //playing the bj sound
+            play("BIG_WIN");
+            game.hasRoundStarted = false;
+            game.isSwitching = true;
+            game.isDoubledown = false;
+            game.playerCards = game.secondHand;
+            game.isSecondHand = true;
+          }
           checkSplitting();
         }
       } else {
@@ -280,6 +335,35 @@
     if (game.isSplit && game.isSecondHand) {
       game.isSplit = false;
       game.isSecondHand = false;
+      let firstHandText = "";
+      let secondHandText = "";
+      // İŞTE İKİ ELİN BERABER SONUCUNU BURADA VERECEĞİZ.
+      // ikinci el sonlandığı zaman iki elin sonucunu beraber vereceğiz.
+      const firstHandResult = gameLogic(game.dealerCards, game.firstHand);
+      const secondHandResult = gameLogic(game.dealerCards, game.secondHand);
+      if (firstHandResult === "WIN") {
+        firstHandText = "Won the first hand";
+      } else if (firstHandResult === "LOSE") {
+        firstHandText = "Lost the first hand";
+      } else if (firstHandResult === "PUSH") {
+        firstHandText = "First hand was a push";
+      } else if (firstHandResult === "BJ") {
+        firstHandText = "First hand was a blackjack";
+      }
+      // text for the second hand
+      if (secondHandResult === "WIN") {
+        secondHandText = "won the second hand";
+      } else if (secondHandResult === "LOSE") {
+        secondHandText = "lost the second hand";
+      } else if (secondHandResult === "PUSH") {
+        secondHandText = "second hand was a push";
+      } else if (secondHandResult === "BJ") {
+        secondHandText = "second hand was a blackjack";
+      }
+      game.stateText = `${firstHandText} and ${secondHandText}`;
+      game.hasRoundStarted = false;
+      game.isSwitching = true;
+      game.isDoubledown = false;
     }
   }
 </script>
@@ -303,7 +387,7 @@
             min="0"
             type="number"
             bind:value={game.bet}
-            readonly={game.isStarted}
+            readonly={game.hasRoundStarted}
             class="number-input p-2 text-xl border-[#2e4c7d] border rounded-lg w-full bg-[#182b39] shadow-2xl"
           />
           <div

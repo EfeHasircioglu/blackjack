@@ -56,8 +56,12 @@ let shownDealerCards = $state([]);
 let stateText = $state("");
 // Stores the value of the second hand.
 let secondHand = $state([]);
+// Stores the value of the first hand.
+let firstHand = $state([]);
 // secondhand oynanma durumunu tutuyor
 let isSecondHand = $state(false);
+//
+let splitGames = $state();
 // state of the take button being disabled
 let isTakeDisabled = $state(false);
 // If the player ran out of money
@@ -163,8 +167,14 @@ export const game = {
   get secondHand() {
     return secondHand;
   },
+  get firstHand() {
+    return firstHand;
+  },
   get isSecondHand() {
     return isSecondHand;
+  },
+  get splitGames() {
+    return splitGames;
   },
   get isTakeDisabled() {
     return isTakeDisabled;
@@ -225,8 +235,14 @@ export const game = {
   set secondHand(val) {
     secondHand = val;
   },
+  set firstHand(val) {
+    firstHand = val;
+  },
   set isSecondHand(val) {
     isSecondHand = val;
+  },
+  set splitGames(val) {
+    splitGames = val;
   },
   set isTakeDisabled(val) {
     isTakeDisabled = val;
