@@ -95,6 +95,8 @@
 
   function gameLogic(dealerValue, playerValue) {
     // Dealer takes a card.
+    if (playerValue > 21) return "LOSE";
+    if (dealerValue > 21) return "WIN";
     if (game.isDoubledown) {
       if (playerValue > 21) return "LOSE";
       if (dealerValue > 21) return "WIN";
@@ -332,6 +334,7 @@
 
   // Checks if splitting state finished.
   function checkSplitting() {
+    let multiplier = game.isDoubledown ? 2 : 1;
     if (game.isSplit && game.isSecondHand) {
       game.isSplit = false;
       game.isSecondHand = false;
@@ -339,26 +342,38 @@
       let secondHandText = "";
       // İŞTE İKİ ELİN BERABER SONUCUNU BURADA VERECEĞİZ.
       // ikinci el sonlandığı zaman iki elin sonucunu beraber vereceğiz.
-      const firstHandResult = gameLogic(game.dealerCards, game.firstHand);
-      const secondHandResult = gameLogic(game.dealerCards, game.secondHand);
+      const firstHandResult = gameLogic(
+        game.dealerScore,
+        transformToNumerical(game.firstHand),
+      );
+      const secondHandResult = gameLogic(
+        game.dealerScore,
+        transformToNumerical(game.playerCards),
+      );
       if (firstHandResult === "WIN") {
         firstHandText = "Won the first hand";
+        game.money = game.money + multiplier * game.bet;
       } else if (firstHandResult === "LOSE") {
         firstHandText = "Lost the first hand";
+        game.money = game.money - multiplier * game.bet;
       } else if (firstHandResult === "PUSH") {
         firstHandText = "First hand was a push";
       } else if (firstHandResult === "BJ") {
         firstHandText = "First hand was a blackjack";
+        game.money = game.money + multiplier * game.bet * 1.5;
       }
       // text for the second hand
       if (secondHandResult === "WIN") {
         secondHandText = "won the second hand";
+        game.money = game.money + multiplier * game.bet;
       } else if (secondHandResult === "LOSE") {
         secondHandText = "lost the second hand";
+        game.money = game.money - multiplier * game.bet;
       } else if (secondHandResult === "PUSH") {
         secondHandText = "second hand was a push";
       } else if (secondHandResult === "BJ") {
         secondHandText = "second hand was a blackjack";
+        game.money = game.money + multiplier * game.bet * 1.5;
       }
       game.stateText = `${firstHandText} and ${secondHandText}`;
       game.hasRoundStarted = false;
