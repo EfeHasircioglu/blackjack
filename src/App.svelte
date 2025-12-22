@@ -42,6 +42,17 @@
   }
 
   $effect(() => {
+    if (game.bet > game.money || game.bet < 0) {
+      game.bet = 100;
+      alert("Invalid bet!");
+      game.isStarted = false;
+      game.hasRoundStarted = false;
+      game.isSwitching = true;
+    }
+
+  })
+
+  $effect(() => {
     // paramız biterse oyun bitiyor..
     if (game.money <= 0) {
       setTimeout(() => {
@@ -68,6 +79,8 @@
       } else {
         game.stateText = "Invalid bet amount.";
         game.bet = 100;
+        game.isStarted = false;
+        game.hasRoundStarted = false;
         return;
       }
     }
@@ -205,11 +218,13 @@
     }
   }
 
-  async function checkGameOnSplit() {
+  async function checkGameOnSplit(forceSwitch) {
+    // if the player wishes to stay, than forceSwitch = true;
     let currentResult = null;
     if (game.playerScore === 21) currentResult = "BJ";
     else if (game.playerScore > 21) currentResult = "LOSE";
-
+    // if the game has not finished yet and also if we havent said stay, then don't do anything because we may draw another card
+    if (!currentResult && !forceSwitch && !game.isSecondHand) return;
     if (!game.isSecondHand) {
       if (currentResult === "BJ") {
         game.stateText = "First hand Blackjack! Switching to second hand.";
@@ -229,9 +244,11 @@
       game.secondHand = game.playerCards;
       if (currentResult === "BJ") play("BIG_WIN");
       if (currentResult === "LOSE") play("LOSE");
-      game.isStay = true;
-      await dealerCheck();
-      checkSplitting();
+      if (currentResult || forceSwitch) {
+        game.isStay = true;
+        await dealerCheck();
+        checkSplitting();
+      }
     }
   }
 
@@ -249,7 +266,7 @@
       setTimeout(() => {
         game.isTakeDisabled = false;
         if (game.isSplit) {
-          checkGameOnSplit();
+          checkGameOnSplit(false);
         } else {
           checkGame();
         }
@@ -258,7 +275,7 @@
     } else if (actionDesc === "STAY") {
       if (!game.isDoubledown) {
         if (game.isSplit && !game.isSecondHand) {
-          checkGameOnSplit();
+          checkGameOnSplit(true);
         } else {
           game.isStay = true;
           dealerCheck();
